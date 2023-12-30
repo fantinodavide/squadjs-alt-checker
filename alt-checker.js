@@ -60,7 +60,7 @@ export default class AltChecker extends DiscordBasePlugin {
         if (!this.DBLogPlugin) return;
 
         this.options.discordClient.on('message', this.onDiscordMessage);
-        this.server.on('CHAT_MESSAGE', this.onDiscordMessage);
+        this.server.on('CHAT_MESSAGE', this.onChatMessage);
         this.server.on('PLAYER_CONNECTED', this.onPlayerConnected);
     }
 
@@ -70,7 +70,7 @@ export default class AltChecker extends DiscordBasePlugin {
     }
 
     async onDiscordMessage(message) {
-        const res = await this.onMessage(message);
+        const res = await this.onMessage(message.content);
 
         if (!res) return;
 
@@ -79,7 +79,9 @@ export default class AltChecker extends DiscordBasePlugin {
     }
 
     async onChatMessage(message) {
-        const res = await this.onMessage(message);
+        if(message.chat != 'ChatAdmin') return;
+        
+        const res = await this.onMessage(message.message);
         let warningMessage = ""
 
         if (res.length > 1) {
@@ -94,11 +96,11 @@ export default class AltChecker extends DiscordBasePlugin {
             warningMessage += `No Alts found!`
         }
 
-        this.warn(warningMessage);
+        this.warn(message.eosID, warningMessage);
     }
 
     async onMessage(message) {
-        const messageContent = message.content
+        const messageContent = message
         const regex = new RegExp(`^${this.options.commandPrefix} (?<steamID>\\d{17})?(?<eosID>[\\w\\d]{32})?(?<lastIP>[\\d\\.]+)?$`, 'i');
         const matched = messageContent.match(regex)
 
