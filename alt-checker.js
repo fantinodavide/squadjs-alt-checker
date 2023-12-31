@@ -65,23 +65,27 @@ export default class AltChecker extends DiscordBasePlugin {
     }
 
     async unmount() {
-        await super.unmount();
-        clearInterval(this.updateInterval);
     }
 
     async onDiscordMessage(message) {
         const res = await this.onMessage(message.content);
 
-        if (!res) return;
+        if (res === "nomatch") return;
 
         const embed = this.generateDiscordEmbed(res);
         message.channel.send({ embed: embed });
     }
 
     async onChatMessage(message) {
-        if(message.chat != 'ChatAdmin') return;
-        
+        if (message.chat != 'ChatAdmin') return;
+
         const res = await this.onMessage(message.message);
+
+        if (!res) {
+            this.warn(message.eosID, `Unable to find player`);
+            return;
+        }
+
         let warningMessage = ""
 
         if (res.length > 1) {
@@ -104,7 +108,7 @@ export default class AltChecker extends DiscordBasePlugin {
         const regex = new RegExp(`^${this.options.commandPrefix} (?<steamID>\\d{17})?(?<eosID>[\\w\\d]{32})?(?<lastIP>[\\d\\.]+)?$`, 'i');
         const matched = messageContent.match(regex)
 
-        if (!matched) return;
+        if (!matched) return "nomatch";
 
         const res = await this.doAltCheck(matched.groups)
 
@@ -115,6 +119,8 @@ export default class AltChecker extends DiscordBasePlugin {
         await delay(3000);
 
         const res = await this.doAltCheck({ lastIP: info.ip })
+
+        if (!res) return;
 
         if (res.length <= 1) return;
 
@@ -131,7 +137,13 @@ export default class AltChecker extends DiscordBasePlugin {
     generateDiscordEmbed(res) {
         let embed
 
-        if (res.length > 1) {
+        if (!res) {
+            embed = {
+                title: `Unable to find player`,
+                description: `Player hasn't been found in the database!`,
+                color: 'ff9900',
+            }
+        } else if (res.length > 1) {
             embed = {
                 title: `Alts for IP: ${res[ 0 ].lastIP}`,
                 color: 'FF0000',
@@ -173,6 +185,8 @@ export default class AltChecker extends DiscordBasePlugin {
             const ipLookup = await this.DBLogPlugin.models.Player.findOne({
                 where: condition
             })
+            if (!ipLookup) return;
+
             IP = ipLookup.lastIP;
         }
 
