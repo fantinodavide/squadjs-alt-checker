@@ -52,6 +52,7 @@ export default class AltChecker extends DiscordBasePlugin {
         this.doAltCheck = this.doAltCheck.bind(this);
         this.onChatMessage = this.onChatMessage.bind(this);
         this.onPlayerConnected = this.onPlayerConnected.bind(this);
+        this.getPlayerByName = this.getPlayerByName.bind(this);
 
         this.DBLogPlugin;
 
@@ -111,7 +112,7 @@ export default class AltChecker extends DiscordBasePlugin {
 
     async onMessage(message) {
         const messageContent = message
-        const regex = new RegExp(`^${this.options.commandPrefix} (?<steamID>\\d{17})?(?<eosID>[\\w\\d]{32})?(?<lastIP>[\\d\\.]+)?$`, 'i');
+        const regex = new RegExp(`^${this.options.commandPrefix} (?:(?<steamID>\\d{17})|(?<eosID>[\\w\\d]{32})|(?<lastIP>(?:\\d{1,3}\\.){3}\\d{1,3})|(?<playerName>.+))$`, 'i');
         const matched = messageContent.match(regex)
 
         if (!matched) return RETURN_TYPE.NO_MATCH;
@@ -180,13 +181,23 @@ export default class AltChecker extends DiscordBasePlugin {
         let condition;
         let IP;
 
-        for (let group in matchGroups)
-            if (matchGroups[ group ]) {
-                condition = { [ group ]: matchGroups[ group ] }
-                if (group == 'lastIP')
-                    IP = matchGroups[ group ];
-                break;
+        for (let group in matchGroups) {
+            if (!matchGroups[ group ]) continue;
+            let groupOverride = group;
+
+            if (groupOverride == 'playerName') {
+                const foundPlayer = this.getPlayerByName(matchGroups[ groupOverride ])
+                if (!foundPlayer) return RETURN_TYPE.PLAYER_NOT_FOUND;
+
+                groupOverride = 'eosID';
+                matchGroups[ groupOverride ] = foundPlayer.eosID;
             }
+
+            condition = { [ groupOverride ]: matchGroups[ groupOverride ] }
+            if (groupOverride == 'lastIP')
+                IP = matchGroups[ groupOverride ];
+            break;
+        }
 
         if (!IP) {
             const ipLookup = await this.DBLogPlugin.models.Player.findOne({
@@ -204,6 +215,10 @@ export default class AltChecker extends DiscordBasePlugin {
         })
 
         return res;
+    }
+
+    getPlayerByName(name) {
+        return this.server.players.find(p => p.name === name || p.name.match(new RegExp(name, 'i')));
     }
 
     getFormattedUrlsPart(steamID, eosID) {
