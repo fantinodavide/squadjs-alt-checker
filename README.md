@@ -1,7 +1,7 @@
 ## AltChecker
 
 ### Commands
-`!altcheck <steamID/eosID/IP>` usable on discord and in-game. will start a manual check of a specific player
+`!altcheck <steamID/eosID/IP/playerName>` usable on discord and in-game. will start a manual check of a specific player. the player name can only be used for online players
 
 ### Example configuration
 ```json
