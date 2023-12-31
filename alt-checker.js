@@ -4,6 +4,10 @@ import Sequelize, { NOW, Op, QueryTypes } from 'sequelize';
 
 const delay = (ms) => new Promise((res, rej) => setTimeout(res));
 
+const RETURN_TYPE = {
+    NO_MATCH: 0,
+    PLAYER_NOT_FOUND: 1
+}
 export default class AltChecker extends DiscordBasePlugin {
     static get description() {
         return '';
@@ -70,7 +74,7 @@ export default class AltChecker extends DiscordBasePlugin {
     async onDiscordMessage(message) {
         const res = await this.onMessage(message.content);
 
-        if (res === "nomatch") return;
+        if (res === RETURN_TYPE.NO_MATCH) return;
 
         const embed = this.generateDiscordEmbed(res);
         message.channel.send({ embed: embed });
@@ -81,7 +85,9 @@ export default class AltChecker extends DiscordBasePlugin {
 
         const res = await this.onMessage(message.message);
 
-        if (!res) {
+        if (res == RETURN_TYPE.NO_MATCH) return;
+
+        if (!res || res == RETURN_TYPE.PLAYER_NOT_FOUND || res.length == 0) {
             this.warn(message.eosID, `Unable to find player`);
             return;
         }
@@ -108,7 +114,7 @@ export default class AltChecker extends DiscordBasePlugin {
         const regex = new RegExp(`^${this.options.commandPrefix} (?<steamID>\\d{17})?(?<eosID>[\\w\\d]{32})?(?<lastIP>[\\d\\.]+)?$`, 'i');
         const matched = messageContent.match(regex)
 
-        if (!matched) return "nomatch";
+        if (!matched) return RETURN_TYPE.NO_MATCH;
 
         const res = await this.doAltCheck(matched.groups)
 
@@ -122,7 +128,7 @@ export default class AltChecker extends DiscordBasePlugin {
 
         if (!res) return;
 
-        if (res.length <= 1) return;
+        if (res.length <= 1 || res == RETURN_TYPE.PLAYER_NOT_FOUND) return;
 
         const embed = this.generateDiscordEmbed(res);
         embed.title = `Alts found for connected player: ${info.player.name}`
@@ -137,7 +143,7 @@ export default class AltChecker extends DiscordBasePlugin {
     generateDiscordEmbed(res) {
         let embed
 
-        if (!res) {
+        if (!res || res == RETURN_TYPE.PLAYER_NOT_FOUND || res.length == 0) {
             embed = {
                 title: `Unable to find player`,
                 description: `Player hasn't been found in the database!`,
@@ -159,6 +165,7 @@ export default class AltChecker extends DiscordBasePlugin {
                 })
             }
         } else {
+            this.verbose(1, 'No alts found', res)
             embed = {
                 title: `No Alts found`,
                 description: `Player is clean!`,
@@ -185,7 +192,7 @@ export default class AltChecker extends DiscordBasePlugin {
             const ipLookup = await this.DBLogPlugin.models.Player.findOne({
                 where: condition
             })
-            if (!ipLookup) return;
+            if (!ipLookup) return RETURN_TYPE.PLAYER_NOT_FOUND;
 
             IP = ipLookup.lastIP;
         }
