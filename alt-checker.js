@@ -34,6 +34,11 @@ export default class AltChecker extends DiscordBasePlugin {
             kickIfAltDetected: {
                 required: false,
                 description: 'Will kick a player if an ALT has been detected on his IP.',
+                default: false
+            },
+            onlyKickOnlineAlt: {
+                required: false,
+                description: 'Checks if a player with the same IP is already connected to server and kicks the player that is trying to connect',
                 default: true
             },
             kickReason: {
@@ -53,6 +58,7 @@ export default class AltChecker extends DiscordBasePlugin {
         this.onChatMessage = this.onChatMessage.bind(this);
         this.onPlayerConnected = this.onPlayerConnected.bind(this);
         this.getPlayerByName = this.getPlayerByName.bind(this);
+        this.getPlayersByUsernameDatabase = this.getPlayersByUsernameDatabase.bind(this);
 
         this.DBLogPlugin;
 
@@ -135,8 +141,23 @@ export default class AltChecker extends DiscordBasePlugin {
         embed.title = `Alts found for connected player: ${info.player.name}`
         embed.description = this.getFormattedUrlsPart(info.player.steamID, info.eosID) + "\n​";
 
-        if (this.options.kickIfAltDetected)
-            this.kick(info.eosID, this.options.kickReason)
+        let shouldKick = false;
+
+        if (this.options.kickIfAltDetected) {
+            shouldKick = true;
+
+            const onlineAlt = this.server.players.find(p => p.eosID != info.player.eosID && res.find(dbP => dbP.eosID == p.eosID))
+            if (this.options.onlyKickOnlineAlt && !onlineAlt)
+                shouldKick = false;
+
+            if (shouldKick)
+                this.kick(info.eosID, this.options.kickReason)
+        }
+
+        embed.fields.unshift({
+            name: 'Player Kicked?',
+            value: shouldKick ? 'YES' : 'NO'
+        })
 
         await this.sendDiscordMessage({ embed: embed });
     }
@@ -154,23 +175,37 @@ export default class AltChecker extends DiscordBasePlugin {
             embed = {
                 title: `Alts for IP: ${res[ 0 ].lastIP}`,
                 color: 'FF0000',
-                fields: []
+                fields: [ {
+                    name: 'IP',
+                    value: res[ 0 ].lastIP
+                } ]
             }
 
             for (let altK in res) {
                 const alt = res[ altK ];
 
                 embed.fields.push({
-                    name: `${+altK + 1}. ${alt.lastName}`,
-                    value: `${this.getFormattedUrlsPart(alt.steamID, alt.eosID)}\n**SteamID: **\`${alt.steamID}\`\n**EOS ID: **\`${alt.eosID}\`\n​`
+                    name: `​\n${+altK + 1}. ${alt.lastName}`,
+                    value: `${this.getFormattedUrlsPart(alt.steamID, alt.eosID)}\n**SteamID: **\`${alt.steamID}\`\n**EOS ID: **\`${alt.eosID}\``
                 })
             }
         } else {
             this.verbose(1, 'No alts found', res)
             embed = {
-                title: `No Alts found`,
-                description: `Player is clean!`,
+                title: `${res[ 0 ].lastName} doesn't have alts!`,
                 color: '00FF00',
+                description: this.getFormattedUrlsPart(res[ 0 ].steamID, res[ 0 ].eosID),
+                fields: []
+            }
+
+            for (let propK in res[ 0 ]) {
+                if (propK === 'id') continue;
+                const prop = res[ 0 ][ propK ];
+                embed.fields.push({
+                    name: `${propK.replace(/last/i, '').toUpperCase()}`,
+                    value: `${prop}`,
+                    inline: true
+                })
             }
         }
 
@@ -186,7 +221,7 @@ export default class AltChecker extends DiscordBasePlugin {
             let groupOverride = group;
 
             if (groupOverride == 'playerName') {
-                const foundPlayer = this.getPlayerByName(matchGroups[ groupOverride ])
+                const foundPlayer = await this.getPlayerByName(matchGroups[ groupOverride ])
                 if (!foundPlayer) return RETURN_TYPE.PLAYER_NOT_FOUND;
 
                 groupOverride = 'eosID';
@@ -214,11 +249,23 @@ export default class AltChecker extends DiscordBasePlugin {
             }
         })
 
-        return res;
+        return res.map(r => r.dataValues);
     }
 
-    getPlayerByName(name) {
-        return this.server.players.find(p => p.name === name || p.name.match(new RegExp(name, 'i')));
+    async getPlayerByName(name) {
+        const onlineRes = this.server.players.find(p => p.name === name || p.name.match(new RegExp(name, 'i')));
+
+        if (onlineRes)
+            return onlineRes
+
+        const dbRes = (await this.getPlayersByUsernameDatabase(name)).map(p => p.dataValues).map(p => ({
+            name: p.lastName,
+            eosID: p.eosID,
+            steamID: p.steamID,
+            ip: p.lastIP
+        }))
+
+        return dbRes[ 0 ];
     }
 
     getFormattedUrlsPart(steamID, eosID) {
@@ -227,5 +274,13 @@ export default class AltChecker extends DiscordBasePlugin {
 
     getBattlemetricsRconUrl(eosID) {
         return `https://www.battlemetrics.com/rcon/players?filter%5Bsearch%5D=${eosID}&filter%5Bservers%5D=false&filter%5BplayerFlags%5D=&sort=-lastSeen&showServers=true&method=quick&redirect=1`
+    }
+
+    async getPlayersByUsernameDatabase(username) {
+        return await this.DBLogPlugin.models.Player.findAll({
+            where: { lastName: { [ Op.like ]: `%${username}%` }, eosID: { [ Op.not ]: null } },
+            limit: 2,
+            group: [ 'eosID' ]
+        });
     }
 }
