@@ -11,7 +11,8 @@
     "discordClient": "discord",
     "commandPrefix": "!altcheck",
     "channelID": "",
-    "kickIfAltDetected": true,
+    "kickIfAltDetected": false,
+    "onlyKickOnlineAlt": true,
     "kickReason": "ALT detected. Protection kick"
 }
 ```
