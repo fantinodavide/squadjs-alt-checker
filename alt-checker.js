@@ -238,9 +238,9 @@ export default class AltChecker extends DiscordBasePlugin {
             const ipLookup = await this.DBLogPlugin.models.Player.findOne({
                 where: condition
             })
-            if (!ipLookup) return RETURN_TYPE.PLAYER_NOT_FOUND;
+            IP = ipLookup?.lastIP;
 
-            IP = ipLookup.lastIP;
+            if (!IP) return RETURN_TYPE.PLAYER_NOT_FOUND;
         }
 
         const res = await this.DBLogPlugin.models.Player.findAll({
@@ -248,6 +248,8 @@ export default class AltChecker extends DiscordBasePlugin {
                 lastIP: IP
             }
         })
+
+        if (!res || res.length == 0) return RETURN_TYPE.PLAYER_NOT_FOUND;
 
         return res.map(r => r.dataValues);
     }
