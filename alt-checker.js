@@ -191,12 +191,12 @@ export default class AltChecker extends DiscordBasePlugin {
 
             for (let altK in res) {
                 const alt = res[ altK ];
-                const isOnline = this.server.players.find(p => p.eosID === alt.eosID)
-                const isOnlineText = isOnline ? `YES\n**Team: **${isOnline.teamID} (${isOnline.role.split('_')[ 0 ]})` : 'NO';
+                const onlinePlayer = this.server.players.find(p => p.eosID === alt.eosID)
+                const isOnlineText = onlinePlayer ? `YES\n**Team: **${onlinePlayer.teamID} (${onlinePlayer.role.split('_')[ 0 ]})` : 'NO';
 
                 embed.fields.push({
                     name: `​\n${+altK + 1}. ${alt.lastName}`,
-                    value: `${this.getFormattedUrlsPart(alt.steamID, alt.eosID)}\n**SteamID: **\`${alt.steamID}\`\n**EOS ID: **\`${alt.eosID}\`\n**Is Online: **${isOnline}`
+                    value: `${this.getFormattedUrlsPart(alt.steamID, alt.eosID)}\n**SteamID: **\`${alt.steamID}\`\n**EOS ID: **\`${alt.eosID}\`\n**Is Online: **${isOnlineText}`
                 })
             }
         } else {
