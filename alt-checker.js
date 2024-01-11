@@ -79,6 +79,8 @@ export default class AltChecker extends DiscordBasePlugin {
     }
 
     async onDiscordMessage(message) {
+        if (message.author.id === this.options.discordClient.user.id) return;
+
         const res = await this.onMessage(message.content);
 
         if (res === RETURN_TYPE.NO_MATCH) return;
