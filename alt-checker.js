@@ -83,6 +83,8 @@ export default class AltChecker extends DiscordBasePlugin {
 
         if (res === RETURN_TYPE.NO_MATCH) return;
 
+        this.verbose(1, `${message.author.username}#${message.author.discriminator} has requested an discord alt-check: ${message.content}`)
+
         const embed = this.generateDiscordEmbed(res);
         message.channel.send({ embed: embed });
     }
@@ -93,6 +95,8 @@ export default class AltChecker extends DiscordBasePlugin {
         const res = await this.onMessage(message.message);
 
         if (res == RETURN_TYPE.NO_MATCH) return;
+
+        this.verbose(1, `${message.player.name} has requested an in-game alt-check: ${message.message}`)
 
         if (!res || res == RETURN_TYPE.PLAYER_NOT_FOUND || res.length == 0) {
             this.warn(message.eosID, `Unable to find player`);
@@ -121,7 +125,11 @@ export default class AltChecker extends DiscordBasePlugin {
         const regex = new RegExp(`^${this.options.commandPrefix} (?:(?<steamID>\\d{17})|(?<eosID>[\\w\\d]{32})|(?<lastIP>(?:\\d{1,3}\\.){3}\\d{1,3})|(?<playerName>.+))$`, 'i');
         const matched = messageContent.match(regex)
 
-        if (!matched) return RETURN_TYPE.NO_MATCH;
+        if (!matched) {
+            this.verbose(1, `"${message}" will not be processed.`)
+            return RETURN_TYPE.NO_MATCH;
+        }
+        this.verbose(1, `"${message}" has been recognized as a known command and will be processed.`)
 
         const res = await this.doAltCheck(matched.groups)
 
@@ -183,10 +191,12 @@ export default class AltChecker extends DiscordBasePlugin {
 
             for (let altK in res) {
                 const alt = res[ altK ];
+                const isOnline = this.server.players.find(p => p.eosID === alt.eosID)
+                const isOnlineText = isOnline ? `YES\n**Team: **${isOnline.teamID} (${isOnline.role.split('_')[ 0 ]})` : 'NO';
 
                 embed.fields.push({
                     name: `​\n${+altK + 1}. ${alt.lastName}`,
-                    value: `${this.getFormattedUrlsPart(alt.steamID, alt.eosID)}\n**SteamID: **\`${alt.steamID}\`\n**EOS ID: **\`${alt.eosID}\``
+                    value: `${this.getFormattedUrlsPart(alt.steamID, alt.eosID)}\n**SteamID: **\`${alt.steamID}\`\n**EOS ID: **\`${alt.eosID}\`\n**Is Online: **${isOnline}`
                 })
             }
         } else {
