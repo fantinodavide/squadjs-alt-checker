@@ -128,7 +128,7 @@ export default class AltChecker extends DiscordBasePlugin {
         const matched = messageContent.match(regex)
 
         if (!matched) {
-            this.verbose(1, `"${message}" will not be processed.`)
+            //this.verbose(1, `"${message}" will not be processed.`)
             return RETURN_TYPE.NO_MATCH;
         }
         this.verbose(1, `"${message}" has been recognized as a known command and will be processed.`)
