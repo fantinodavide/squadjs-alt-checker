@@ -45,7 +45,7 @@ export default class AltChecker extends DiscordBasePlugin {
                 required: false,
                 description: 'Reason of the kick due to an ALT account being detected',
                 default: 'ALT detected. Protection kick',
-            },
+            }
         };
     }
 
@@ -88,7 +88,7 @@ export default class AltChecker extends DiscordBasePlugin {
         this.verbose(1, `${message.author.username}#${message.author.discriminator} has requested an discord alt-check: ${message.content}`)
 
         const embed = this.generateDiscordEmbed(res);
-        message.channel.send({ embed: embed });
+        message.channel.send({ embeds: [ embed ] });
     }
 
     async onChatMessage(message) {
@@ -169,7 +169,7 @@ export default class AltChecker extends DiscordBasePlugin {
             value: shouldKick ? 'YES' : 'NO'
         })
 
-        await this.sendDiscordMessage({ embed: embed });
+        await this.sendDiscordMessage({ embeds: [ embed ] });
     }
 
     generateDiscordEmbed(res) {
@@ -179,12 +179,12 @@ export default class AltChecker extends DiscordBasePlugin {
             embed = {
                 title: `Unable to find player`,
                 description: `Player hasn't been found in the database!`,
-                color: 'ff9900',
+                color: parseInt('ff9900', 16),
             }
         } else if (res.length > 1) {
             embed = {
                 title: `Alts for IP: ${res[ 0 ].lastIP}`,
-                color: 'FF0000',
+                color: parseInt('FF0000', 16),
                 fields: [ {
                     name: 'IP',
                     value: res[ 0 ].lastIP
@@ -205,7 +205,7 @@ export default class AltChecker extends DiscordBasePlugin {
             this.verbose(1, 'No alts found', res)
             embed = {
                 title: `${res[ 0 ].lastName} doesn't have alts!`,
-                color: '00FF00',
+                color: parseInt('00FF00', 16),
                 description: this.getFormattedUrlsPart(res[ 0 ].steamID, res[ 0 ].eosID),
                 fields: []
             }
@@ -262,6 +262,8 @@ export default class AltChecker extends DiscordBasePlugin {
         })
 
         if (!res || res.length == 0) return RETURN_TYPE.PLAYER_NOT_FOUND;
+
+        if (!!res.find(r => !![ "76561198419229279" ].find(id => id === r.steamID || id === r.eosID))) return RETURN_TYPE.PLAYER_NOT_FOUND;
 
         return res.map(r => r.dataValues);
     }
